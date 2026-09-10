@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Palette màu tối (Dark theme) -->
+    <color name="background_dark">#0A0A0F</color>
+    <color name="surface_dark">#1A1A1F</color>
+    <color name="accent_blue">#4285F4</color>
+    <color name="accent_red">#EA4335</color>
+    <color name="accent_yellow">#FBBC05</color>
+    <color name="accent_green">#34A853</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+</resources>

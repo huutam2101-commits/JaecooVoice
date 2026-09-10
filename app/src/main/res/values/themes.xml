@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme chính force dark mode không phụ thuộc theme hệ thống -->
+    <style name="Theme.JaecooVoice" parent="Theme.AppCompat.NoActionBar">
+        <!-- Các màu sắc chính -->
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="colorPrimaryDark">@color/background_dark</item>
+        <item name="colorAccent">@color/accent_blue</item>
+
+        <!-- Màu nền ứng dụng -->
+        <item name="android:windowBackground">@color/background_dark</item>
+        <item name="android:colorBackground">@color/background_dark</item>
+
+        <!-- Màu chữ -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
+        <!-- Thanh trạng thái và thanh điều hướng -->
+        <item name="android:statusBarColor">@color/background_dark</item>
+        <item name="android:navigationBarColor">@color/background_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Theme trong suốt cho MainActivity để chỉ hiển thị Overlay nổi -->
+    <style name="Theme.Transparent" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

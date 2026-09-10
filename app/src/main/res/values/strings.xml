@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jaecoo Voice</string>
+    <string name="status_ready">Sẵn sàng</string>
+    <string name="btn_start">Bắt đầu</string>
+    <string name="overlay_listening">Đang lắng nghe...</string>
+    <string name="accessibility_description">Dịch vụ hỗ trợ bắt phím vô lăng và điều khiển giọng nói Jaecoo Voice</string>
+</resources>

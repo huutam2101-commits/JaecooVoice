@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp"
+    tools:context=".MainActivity">
+
+    <!-- TextView Trạng thái ở trên -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Đang tải model..."
+        android:textColor="@color/text_secondary"
+        android:textSize="16sp" />
+
+    <!-- TextView Kết quả nhận diện ở giữa -->
+    <TextView
+        android:id="@+id/tvResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="32dp"
+        android:background="@color/surface_dark"
+        android:gravity="center"
+        android:minHeight="100dp"
+        android:padding="16dp"
+        android:text="..."
+        android:textColor="@color/accent_blue"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <!-- Button BẮT ĐẦU -->
+    <Button
+        android:id="@+id/btnStart"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:backgroundTint="@color/accent_blue"
+        android:text="BẮT ĐẦU"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp" />
+
+    <!-- Button HIỆN OVERLAY -->
+    <Button
+        android:id="@+id/btnOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="@color/surface_dark"
+        android:text="HIỆN OVERLAY"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp" />
+
+</LinearLayout>

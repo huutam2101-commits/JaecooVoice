@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardOverlay"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    app:cardBackgroundColor="#E616171B"
+    app:cardCornerRadius="28dp"
+    app:cardElevation="12dp">
+
+    <LinearLayout
+        android:id="@+id/overlayContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Thanh 4 màu Google ở trên cùng -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginBottom="12dp"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="#4285F4" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="#EA4335" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="#FBBC05" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="#34A853" />
+        </LinearLayout>
+
+        <!-- Header: 4 chấm màu + Title + Nút X -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/dot_blue" />
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/dot_red" />
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/dot_yellow" />
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/dot_green" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Jaecoo Assistant"
+                android:textColor="#B3FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btnClose"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:clickable="true"
+                android:contentDescription="Đóng"
+                android:focusable="true"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="#B3FFFFFF" />
+        </LinearLayout>
+
+        <!-- Text nghe realtime -->
+        <TextView
+            android:id="@+id/txtHeard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Đang nghe..."
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <!-- Text reply / hướng dẫn -->
+        <TextView
+            android:id="@+id/txtReply"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Hãy nói câu lệnh"
+            android:textColor="#CCFFFFFF"
+            android:textSize="13sp" />
+
+        <!-- WaveView animation -->
+        <com.jaecoo.voice.WaveView
+            android:id="@+id/waveView"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_marginTop="12dp" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

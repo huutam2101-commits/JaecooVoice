@@ -44,7 +44,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
         private const val TAG = "OverlayService"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "jaecoo_overlay_channel"
-        private const val TIMEOUT_MS = 5000L
+        private const val TIMEOUT_MS = 10000L
 
         @Volatile
         private var instance: OverlayService? = null
@@ -85,7 +85,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
     private var isSpeaking = false
 
     private val timeoutRunnable = Runnable {
-        Log.d(TAG, "Timeout 5s — không nghe gì -> đóng overlay")
+        Log.d(TAG, "Timeout 10s — không nghe gì -> đóng overlay")
         dismissAndExit()
     }
 

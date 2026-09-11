@@ -111,8 +111,17 @@ class SherpaSpeechManager private constructor(private val context: Context) {
         try {
             isListening = true
 
-            // 3200 samples = 200ms @ 16kHz — optimal cho Zipformer
-            val bufferSize = 3200
+            // Lấy min buffer size từ hệ thống
+            val minBuffer = AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            Log.d(TAG, "minBufferSize from system = $minBuffer bytes")
+
+            // Dùng 4x min buffer để chắc chắn không bị block
+            val bufferSize = (minBuffer * 4).coerceAtLeast(8192)  // ≥ 8192 bytes
+            Log.d(TAG, "Using bufferSize = $bufferSize bytes")
 
             // Release cái cũ nếu còn
             audioRecord?.let {
@@ -125,7 +134,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize * 2
+                bufferSize
             )
 
             if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
@@ -136,9 +145,12 @@ class SherpaSpeechManager private constructor(private val context: Context) {
 
             audioRecord?.startRecording()
             Log.d(TAG, "Bắt đầu ghi âm")
+            Log.d(TAG, "AudioRecord started. State=${audioRecord?.state}, " +
+                "RecordingState=${audioRecord?.recordingState}, " +
+                "BufferSizeInFrames=${audioRecord?.bufferSizeInFrames}")
 
             recordingThread = Thread {
-                runRecognitionLoop(rec, bufferSize)
+                runRecognitionLoop(rec)
             }.also { it.start() }
 
         } catch (e: Throwable) {
@@ -147,23 +159,17 @@ class SherpaSpeechManager private constructor(private val context: Context) {
         }
     }
 
-    private fun isSpeech(samples: FloatArray): Boolean {
-        var sum = 0.0
-        for (s in samples) sum += s.toDouble() * s
-        val rms = Math.sqrt(sum / samples.size)
-        Log.v("Sherpa", "RMS=$rms isSpeech=${rms > 0.015}")
-        return rms > 0.015
-    }
-
-    private fun runRecognitionLoop(rec: OfflineRecognizer, bufferSize: Int) {
-        val buffer = ShortArray(bufferSize)
+    private fun runRecognitionLoop(rec: OfflineRecognizer) {
+        // Đọc theo chunk 1600 samples (100ms @ 16kHz) để model nhận đều
+        val chunkSamples = 1600
+        val buffer = ShortArray(chunkSamples)
         var currentStream = rec.createStream()
         var lastPartialText = ""
         var lastSpeechTime = System.currentTimeMillis()
         var hasDetectedSpeech = false
 
         while (isListening) {
-            val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+            val readSize = audioRecord?.read(buffer, 0, chunkSamples) ?: 0
             if (readSize <= 0) {
                 try {
                     Thread.sleep(10)
@@ -176,15 +182,17 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 buffer[i] / 32768.0f
             }
 
-            val speechDetected = isSpeech(samples)
-            if (!speechDetected && !hasDetectedSpeech) {
-                try { Thread.sleep(10) } catch (_: Exception) {}
-                continue
-            }
-
+            // LUÔN feed model để nó theo dõi toàn bộ câu (bao gồm cả khoảng lặng ngắn)
             currentStream.acceptWaveform(samples, SAMPLE_RATE)
             rec.decode(currentStream)
             val text = rec.getResult(currentStream).text
+
+            // Log RMS để debug (mọi frame)
+            var sum = 0.0
+            for (s in samples) sum += s.toDouble() * s
+            val rms = Math.sqrt(sum / samples.size)
+            val isSpeech = rms > 0.008  // hạ threshold xuống 0.008
+            Log.v("Sherpa", "RMS=$rms isSpeech=$isSpeech")
 
             // Nếu nhận thêm từ mới -> reset timer im lặng
             if (text.isNotBlank() && text != lastPartialText) {

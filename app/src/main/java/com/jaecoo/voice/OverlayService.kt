@@ -357,6 +357,25 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
         }
     }
 
+    private var lastStartTime = 0L
+    private val START_DEBOUNCE = 2000L
+
+    private fun safeStartListening() {
+        val now = System.currentTimeMillis()
+        if (now - lastStartTime < START_DEBOUNCE) {
+            Log.d(TAG, "Debounce startListening, bỏ qua")
+            return
+        }
+        lastStartTime = now
+
+        try {
+            speechManager.startListening()
+            Log.d(TAG, "Đã gọi startListening")
+        } catch (e: Exception) {
+            Log.e(TAG, "startListening exception", e)
+        }
+    }
+
     private fun transitionTo(newState: State) {
         Log.d(TAG, "State: $state -> $newState")
         state = newState
@@ -369,7 +388,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
                 }
                 updateUi(heard = "Đang nghe...", reply = "Hãy nói câu lệnh")
                 waveView?.setListening(true)
-                speechManager.startListening()
+                safeStartListening()
                 resetTimeout()
             }
             State.PROCESSING, State.SHOWING_RESULT -> {

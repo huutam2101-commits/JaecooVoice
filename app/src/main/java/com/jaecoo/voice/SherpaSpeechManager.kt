@@ -103,121 +103,179 @@ class SherpaSpeechManager private constructor(private val context: Context) {
             return
         }
 
-        val rec = recognizer ?: run {
-            Log.e(TAG, "Recognizer null")
+        val rec = recognizer
+        if (rec == null) {
+            Log.e(TAG, "Recognizer null, không thể start")
+            listener?.onError("Model chưa sẵn sàng")
             return
         }
 
-        try {
-            isListening = true
+        Log.d(TAG, "=== startListening() BEGIN ===")
+        isListening = true
 
-            // Lấy min buffer size từ hệ thống
-            val minBuffer = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
+        // Chạy setup + loop trên 1 background thread duy nhất
+        val t = Thread {
+            android.os.Process.setThreadPriority(
+                android.os.Process.THREAD_PRIORITY_URGENT_AUDIO
             )
-            Log.d(TAG, "minBufferSize from system = $minBuffer bytes")
+            Log.d(TAG, "Worker thread started")
 
-            // Dùng 4x min buffer để chắc chắn không bị block
-            val bufferSize = (minBuffer * 4).coerceAtLeast(8192)  // ≥ 8192 bytes
-            Log.d(TAG, "Using bufferSize = $bufferSize bytes")
+            try {
+                // 1. Get min buffer
+                val minBuffer = AudioRecord.getMinBufferSize(
+                    SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT
+                )
+                Log.d(TAG, "minBufferSize = $minBuffer bytes")
 
-            // Release cái cũ nếu còn
-            audioRecord?.let {
-                try { it.stop() } catch (_: Exception) {}
-                try { it.release() } catch (_: Exception) {}
-            }
+                if (minBuffer <= 0) {
+                    Log.e(TAG, "getMinBufferSize failed: $minBuffer")
+                    isListening = false
+                    listener?.onError("Không lấy được buffer size")
+                    return@Thread
+                }
 
-            audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize
-            )
+                val bufferSize = (minBuffer * 4).coerceAtLeast(8192)
+                Log.d(TAG, "Using bufferSize = $bufferSize bytes")
 
-            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord init failed")
+                // 2. Release old
+                try { audioRecord?.stop() } catch (_: Exception) {}
+                try { audioRecord?.release() } catch (_: Exception) {}
+                audioRecord = null
+
+                // 3. Create AudioRecord
+                audioRecord = AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize
+                )
+
+                val arState = audioRecord?.state
+                Log.d(TAG, "AudioRecord.state = $arState (1=OK)")
+
+                if (arState != AudioRecord.STATE_INITIALIZED) {
+                    Log.e(TAG, "AudioRecord init failed, state=$arState")
+                    isListening = false
+                    listener?.onError("Không khởi tạo được mic")
+                    return@Thread
+                }
+
+                // 4. Start recording
+                audioRecord?.startRecording()
+                Log.d(TAG, "startRecording() called, recordingState=${audioRecord?.recordingState}")
+
+                // 5. Verify recording
+                Thread.sleep(100)
+                val recState = audioRecord?.recordingState
+                Log.d(TAG, "After 100ms, recordingState = $recState (3=RECORDING)")
+
+                if (recState != AudioRecord.RECORDSTATE_RECORDING) {
+                    Log.e(TAG, "AudioRecord không recording, state=$recState")
+                    isListening = false
+                    listener?.onError("Mic không bắt đầu")
+                    return@Thread
+                }
+
+                // 6. Chạy recognition loop
+                runRecognitionLoop(rec, 1600)
+
+            } catch (e: Throwable) {
+                Log.e(TAG, "Worker thread crashed", e)
                 isListening = false
-                return
+                listener?.onError("Lỗi worker: ${e.message}")
+            } finally {
+                isListening = false
+                Log.d(TAG, "=== Worker thread END ===")
             }
-
-            audioRecord?.startRecording()
-            Log.d(TAG, "Bắt đầu ghi âm")
-            Log.d(TAG, "AudioRecord started. State=${audioRecord?.state}, " +
-                "RecordingState=${audioRecord?.recordingState}, " +
-                "BufferSizeInFrames=${audioRecord?.bufferSizeInFrames}")
-
-            recordingThread = Thread {
-                runRecognitionLoop(rec)
-            }.also { it.start() }
-
-        } catch (e: Throwable) {
-            Log.e(TAG, "startListening failed", e)
-            isListening = false
         }
+        t.name = "SherpaRecordingThread"
+        recordingThread = t
+        t.start()
+
+        Log.d(TAG, "Thread started, name=SherpaRecordingThread")
     }
 
-    private fun runRecognitionLoop(rec: OfflineRecognizer) {
-        // Đọc theo chunk 1600 samples (100ms @ 16kHz) để model nhận đều
-        val chunkSamples = 1600
+    private fun runRecognitionLoop(rec: OfflineRecognizer, chunkSamples: Int) {
+        Log.d(TAG, "=== runRecognitionLoop BEGIN, chunk=$chunkSamples ===")
+
         val buffer = ShortArray(chunkSamples)
         var currentStream = rec.createStream()
         var lastPartialText = ""
         var lastSpeechTime = System.currentTimeMillis()
         var hasDetectedSpeech = false
+        var loopCount = 0
+        var silentFrames = 0
 
         while (isListening) {
-            val readSize = audioRecord?.read(buffer, 0, chunkSamples) ?: 0
+            loopCount++
+
+            val ar = audioRecord
+            if (ar == null) {
+                Log.e(TAG, "audioRecord null, break loop")
+                break
+            }
+
+            val readSize = ar.read(buffer, 0, chunkSamples)
+
+            // Log mỗi 100 loops (10 giây) hoặc khi readSize bất thường
+            if (loopCount % 100 == 1 || readSize <= 0) {
+                Log.d(TAG, "Loop #$loopCount readSize=$readSize")
+            }
+
             if (readSize <= 0) {
-                try {
-                    Thread.sleep(10)
-                } catch (_: Exception) {}
+                silentFrames++
+                try { Thread.sleep(20) } catch (_: Exception) {}
                 continue
             }
+            silentFrames = 0
 
-            // Chuyển ShortArray → FloatArray (normalize -1..1)
-            val samples = FloatArray(readSize) { i ->
-                buffer[i] / 32768.0f
-            }
+            // Convert to float
+            val samples = FloatArray(readSize) { i -> buffer[i] / 32768.0f }
 
-            // LUÔN feed model để nó theo dõi toàn bộ câu (bao gồm cả khoảng lặng ngắn)
-            currentStream.acceptWaveform(samples, SAMPLE_RATE)
-            rec.decode(currentStream)
-            val text = rec.getResult(currentStream).text
-
-            // Log RMS để debug (mọi frame)
+            // RMS
             var sum = 0.0
             for (s in samples) sum += s.toDouble() * s
             val rms = Math.sqrt(sum / samples.size)
-            val isSpeech = rms > 0.008  // hạ threshold xuống 0.008
-            Log.v("Sherpa", "RMS=$rms isSpeech=$isSpeech")
 
-            // Nếu nhận thêm từ mới -> reset timer im lặng
-            if (text.isNotBlank() && text != lastPartialText) {
-                lastPartialText = text
-                lastSpeechTime = System.currentTimeMillis()
-                hasDetectedSpeech = true
-                Log.d("Sherpa", "Partial: '$text'")
-                listener?.onPartialResult(text)
+            if (rms > 0.005) {
+                Log.v(TAG, "RMS=$rms readSize=$readSize")
             }
 
-            // Nếu đã có âm thanh và im lặng đủ SILENCE_THRESHOLD_MS (1.5s) -> FINAL
-            if (hasDetectedSpeech && System.currentTimeMillis() - lastSpeechTime > SILENCE_THRESHOLD_MS) {
-                Log.d("Sherpa", "Final: '$lastPartialText'")
-                listener?.onFinalResult(lastPartialText)
+            // Feed vào model
+            try {
+                currentStream.acceptWaveform(samples, SAMPLE_RATE)
+                rec.decode(currentStream)
+                val text = rec.getResult(currentStream).text
 
-                // Reset stream và state để nghe câu mới (KHÔNG tắt mic, KHÔNG stop)
-                currentStream.release()
-                currentStream = rec.createStream()
-                lastPartialText = ""
-                hasDetectedSpeech = false
-                lastSpeechTime = System.currentTimeMillis()
+                if (text.isNotBlank() && text != lastPartialText) {
+                    lastPartialText = text
+                    lastSpeechTime = System.currentTimeMillis()
+                    hasDetectedSpeech = true
+                    Log.d(TAG, "Partial: '$text'")
+                    listener?.onPartialResult(text)
+                }
+
+                // Silence -> final
+                if (hasDetectedSpeech &&
+                    System.currentTimeMillis() - lastSpeechTime > SILENCE_THRESHOLD_MS) {
+                    Log.d(TAG, "Final: '$lastPartialText'")
+                    listener?.onFinalResult(lastPartialText)
+                    currentStream.release()
+                    currentStream = rec.createStream()
+                    lastPartialText = ""
+                    hasDetectedSpeech = false
+                    lastSpeechTime = System.currentTimeMillis()
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Loop decode error: ${e.message}", e)
             }
         }
 
-        currentStream.release()
+        Log.d(TAG, "=== runRecognitionLoop END, total loops=$loopCount ===")
+        try { currentStream.release() } catch (_: Exception) {}
     }
 
     fun stopListening() {

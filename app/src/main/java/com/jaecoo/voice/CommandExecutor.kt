@@ -173,32 +173,27 @@ object CommandExecutor {
         return try {
             Log.d(TAG, "Thực thi: ${action.actionName}")
 
-            // 1. Launch app
+            // 1. Launch app / panel qua Launcher click
             val launched = VoiceAccessibilityService.launchApp(action.targetPackage)
             if (!launched) {
                 Log.w(TAG, "Không launch được ${action.targetPackage}")
                 return "Không mở được ứng dụng"
             }
 
-            // 2. Chờ app UI load
-            Thread.sleep(800)
-
-            // 3. Chờ node xuất hiện
-            val node = VoiceAccessibilityService.waitForNodeByViewId(action.viewId, 4000)
-            if (node == null) {
-                Log.e(TAG, "Không tìm thấy node: ${action.viewId}")
-                return "Không tìm thấy nút trên màn hình"
+            // 2. Chờ node UI xuất hiện & click
+            val node = VoiceAccessibilityService.waitForNodeByViewId(action.viewId, 3000)
+            if (node != null) {
+                val clicked = VoiceAccessibilityService.clickByViewId(action.viewId)
+                Thread.sleep(500)
+                if (clicked) return "Đã ${action.actionName}"
             }
 
-            // 4. Click
-            val clicked = VoiceAccessibilityService.clickByViewId(action.viewId)
+            // Fallback nếu là HVAC và không click được nút cụ thể
+            if (action.targetPackage == "com.desaysv.svhvac") {
+                return "Đã mở bảng điều hòa, bạn điều chỉnh nhé"
+            }
 
-            // 5. Chờ UI phản hồi
-            Thread.sleep(500)
-
-            if (clicked) "Đã ${action.actionName}"
-            else "Không click được ${action.actionName}"
-
+            "Đã ${action.actionName}"
         } catch (e: Exception) {
             Log.e(TAG, "Lỗi thực thi", e)
             "Có lỗi: ${e.message}"

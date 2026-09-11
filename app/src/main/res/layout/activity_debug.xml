@@ -90,7 +90,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Test Tọa độ Climate (Launcher):"
+        android:text="Test Tọa độ Bottom Bar (1440x1920):"
         android:textColor="@color/text_primary"
         android:textSize="13sp"
         android:textStyle="bold" />
@@ -108,7 +108,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="(810, 1800)"
+            android:text="Climate (725,1830)"
             android:textSize="10sp" />
 
         <Button
@@ -119,7 +119,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="(810, 1840)"
+            android:text="Vehicle (287,1830)"
             android:textSize="10sp" />
 
         <Button
@@ -130,7 +130,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="(810, 1880)"
+            android:text="Temp L (475,1830)"
             android:textSize="10sp" />
     </LinearLayout>
 
@@ -147,7 +147,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="(800, 1840)"
+            android:text="Temp R (900,1830)"
             android:textSize="10sp" />
 
         <Button
@@ -158,7 +158,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="(820, 1840)"
+            android:text="Notif (1145,1830)"
             android:textSize="10sp" />
 
         <Button
@@ -169,7 +169,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="(850, 1840)"
+            android:text="Recent (1380,1830)"
             android:textSize="10sp" />
     </LinearLayout>
 

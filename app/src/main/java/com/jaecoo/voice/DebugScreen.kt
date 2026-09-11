@@ -107,12 +107,12 @@ class DebugScreen : AppCompatActivity() {
             }
         }
 
-        btnCoord1.setOnClickListener { testClimateCoord(810, 1800) }
-        btnCoord2.setOnClickListener { testClimateCoord(810, 1840) }
-        btnCoord3.setOnClickListener { testClimateCoord(810, 1880) }
-        btnCoord4.setOnClickListener { testClimateCoord(800, 1840) }
-        btnCoord5.setOnClickListener { testClimateCoord(820, 1840) }
-        btnCoord6.setOnClickListener { testClimateCoord(850, 1840) }
+        btnCoord1.setOnClickListener { testClimateCoord(725, 1830) }
+        btnCoord2.setOnClickListener { testClimateCoord(287, 1830) }
+        btnCoord3.setOnClickListener { testClimateCoord(475, 1830) }
+        btnCoord4.setOnClickListener { testClimateCoord(900, 1830) }
+        btnCoord5.setOnClickListener { testClimateCoord(1145, 1830) }
+        btnCoord6.setOnClickListener { testClimateCoord(1380, 1830) }
     }
 
     private fun testClimateCoord(x: Int, y: Int) {
@@ -135,14 +135,14 @@ class DebugScreen : AppCompatActivity() {
                 // a. Về Home trước
                 VoiceAccessibilityService.goHome()
 
-                // b. Đợi 1 giây
-                try { Thread.sleep(1000) } catch (_: Exception) {}
+                // b. Đợi 800ms
+                try { Thread.sleep(800) } catch (_: Exception) {}
 
-                // c. Gọi testClickCoordinates(x, y)
+                // c. Gọi clickByCoordinates(x, y, 300L)
                 runOnUiThread {
-                    appendLog("Clicking ($x, $y)...")
+                    appendLog("Clicking ($x, $y) 300ms...")
                 }
-                val result = VoiceAccessibilityService.testClickCoordinates(x, y)
+                val result = VoiceAccessibilityService.clickByCoordinates(x, y, 300L)
                 Log.d(TAG, "Result ($x, $y): $result")
 
                 // d. Đợi 1.5 giây
@@ -150,7 +150,7 @@ class DebugScreen : AppCompatActivity() {
 
                 // e. Kiểm tra foreground app
                 val pkg = getForegroundPackage()
-                val logMsg = "Foreground sau click ($x,$y): $pkg (dispatchResult=$result)"
+                val logMsg = "Foreground sau click ($x,$y): $pkg (result=$result)"
                 Log.d(TAG, logMsg)
 
                 // f. Hiển thị kết quả lên TextView

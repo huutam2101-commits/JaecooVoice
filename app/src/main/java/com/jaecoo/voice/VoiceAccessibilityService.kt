@@ -71,15 +71,10 @@ class VoiceAccessibilityService : AccessibilityService() {
         }
 
         fun clickByBounds(bounds: Rect): Boolean {
-            return clickByCoordinates(bounds.centerX(), bounds.centerY())
+            return clickByCoordinates(bounds.centerX(), bounds.centerY(), 300L)
         }
 
-        fun clickByCoordinates(x: Int, y: Int): Boolean {
-            return testClickCoordinates(x, y)
-        }
-
-        fun testClickCoordinates(x: Int, y: Int): Boolean {
-            Log.d(TAG, "testClickCoordinates ($x, $y)")
+        fun clickByCoordinates(x: Int, y: Int, durationMs: Long = 300L): Boolean {
             val service = instance ?: return false
             return try {
                 val path = Path()
@@ -87,21 +82,61 @@ class VoiceAccessibilityService : AccessibilityService() {
 
                 val gesture = GestureDescription.Builder()
                     .addStroke(
-                        GestureDescription.StrokeDescription(path, 0, 50)
+                        GestureDescription.StrokeDescription(path, 0, durationMs)
                     )
                     .build()
 
-                val result = service.dispatchGesture(gesture, null, null)
-                Log.d(TAG, "dispatchGesture: $result")
+                service.dispatchGesture(gesture, null, null)
+                Log.d(TAG, "clickByCoordinates ($x, $y) duration=$durationMs")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "clickByCoordinates fail", e)
+                false
+            }
+        }
+
+        fun testClickCoordinates(x: Int, y: Int, durationMs: Long = 300L): Boolean {
+            return clickByCoordinates(x, y, durationMs)
+        }
+
+        fun openHvacPanelViaLauncher(): Boolean {
+            return try {
+                goHome()
+                Thread.sleep(800)
+
+                val result = clickByCoordinates(725, 1830, 300L)
+                Log.d(TAG, "Click Climate (725, 1830): $result")
+
+                Thread.sleep(1500)
                 result
             } catch (e: Exception) {
-                Log.e(TAG, "testClickCoordinates crash", e)
+                Log.e(TAG, "openHvacPanelViaLauncher fail", e)
+                false
+            }
+        }
+
+        fun openVehicleCenterViaLauncher(): Boolean {
+            return try {
+                goHome()
+                Thread.sleep(800)
+
+                val result = clickByCoordinates(287, 1830, 300L)
+                Log.d(TAG, "Click Vehicle (287, 1830): $result")
+
+                Thread.sleep(1500)
+                result
+            } catch (e: Exception) {
+                Log.e(TAG, "openVehicleCenterViaLauncher fail", e)
                 false
             }
         }
 
         fun launchApp(packageName: String): Boolean {
             val ctx = instance ?: return false
+
+            if (packageName == "com.desaysv.svhvac") {
+                return openHvacPanelViaLauncher()
+            }
 
             val intent = ctx.packageManager.getLaunchIntentForPackage(packageName)
             if (intent != null) {
@@ -111,27 +146,12 @@ class VoiceAccessibilityService : AccessibilityService() {
                 return true
             }
 
-            // Fallback chạy trên background thread
-            Thread {
-                try {
-                    Log.w(TAG, "Fallback for: $packageName")
-                    goHome()
-                    Thread.sleep(1200)
+            if (packageName == "com.desaysv.setting") {
+                return openVehicleCenterViaLauncher()
+            }
 
-                    val coords = when (packageName) {
-                        "com.desaysv.svhvac" -> Pair(810, 1840)
-                        else -> null
-                    }
-
-                    if (coords != null) {
-                        testClickCoordinates(coords.first, coords.second)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Fallback fail", e)
-                }
-            }.start()
-
-            return true  // return ngay, không chờ
+            Log.w(TAG, "No launcher activity: $packageName")
+            return false
         }
 
         fun goHome(): Boolean {

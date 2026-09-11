@@ -11,6 +11,12 @@ object NodeFinder {
 
     private const val TAG = "NodeFinder"
 
+    fun findByViewId(root: AccessibilityNodeInfo?, viewId: String): AccessibilityNodeInfo? {
+        if (root == null || viewId.isBlank()) return null
+        val nodes = root.findAccessibilityNodeInfosByViewId(viewId)
+        return nodes?.firstOrNull { it.isVisibleToUser }
+    }
+
     /**
      * Tìm node theo text/contentDescription.
      * Thứ tự ưu tiên: text.equals -> text.contains -> contentDescription.

@@ -24,9 +24,36 @@ class VoiceAccessibilityService : AccessibilityService() {
 
         fun getInstance(): VoiceAccessibilityService? = instance
 
+        fun getCurrentRoot(): AccessibilityNodeInfo? = instance?.rootInActiveWindow
+
         fun findNodeByText(text: String): AccessibilityNodeInfo? {
             val root = instance?.rootInActiveWindow ?: return null
             return NodeFinder.find(root, text)
+        }
+
+        fun findNodeByViewId(viewId: String): AccessibilityNodeInfo? {
+            val root = getCurrentRoot() ?: return null
+            return NodeFinder.findByViewId(root, viewId)
+        }
+
+        fun clickByViewId(viewId: String): Boolean {
+            val node = findNodeByViewId(viewId)
+            if (node == null) {
+                Log.e(TAG, "Không tìm thấy node: $viewId")
+                return false
+            }
+            return clickNode(node)
+        }
+
+        fun waitForNodeByViewId(viewId: String, timeoutMs: Long): AccessibilityNodeInfo? {
+            val start = System.currentTimeMillis()
+            while (System.currentTimeMillis() - start < timeoutMs) {
+                val node = findNodeByViewId(viewId)
+                if (node != null) return node
+                try { Thread.sleep(200) } catch (_: InterruptedException) {}
+            }
+            Log.w(TAG, "Timeout chờ node: $viewId")
+            return null
         }
 
         fun clickNode(node: AccessibilityNodeInfo?): Boolean {

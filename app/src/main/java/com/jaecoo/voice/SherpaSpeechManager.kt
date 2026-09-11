@@ -68,7 +68,6 @@ class SherpaSpeechManager private constructor(private val context: Context) {
 
             val modelConfig = OfflineModelConfig(
                 transducer = OfflineTransducerModelConfig(
-                    // ĐƯỜNG DẪN TƯƠNG ĐỐI — không có /data/, không có filesDir
                     encoder = "zipformer-vi/encoder.int8.onnx",
                     decoder = "zipformer-vi/decoder.onnx",
                     joiner  = "zipformer-vi/joiner.int8.onnx"
@@ -112,11 +111,8 @@ class SherpaSpeechManager private constructor(private val context: Context) {
         try {
             isListening = true
 
-            val bufferSize = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            ).coerceAtLeast(SAMPLE_RATE) * 2
+            // 3200 samples = 200ms @ 16kHz — optimal cho Zipformer
+            val bufferSize = 3200
 
             // Release cái cũ nếu còn
             audioRecord?.let {
@@ -125,11 +121,11 @@ class SherpaSpeechManager private constructor(private val context: Context) {
             }
 
             audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize
+                bufferSize * 2
             )
 
             if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
@@ -151,8 +147,16 @@ class SherpaSpeechManager private constructor(private val context: Context) {
         }
     }
 
+    private fun isSpeech(samples: FloatArray): Boolean {
+        var sum = 0.0
+        for (s in samples) sum += s.toDouble() * s
+        val rms = Math.sqrt(sum / samples.size)
+        Log.v("Sherpa", "RMS=$rms isSpeech=${rms > 0.015}")
+        return rms > 0.015
+    }
+
     private fun runRecognitionLoop(rec: OfflineRecognizer, bufferSize: Int) {
-        val buffer = ShortArray(bufferSize / 2)
+        val buffer = ShortArray(bufferSize)
         var currentStream = rec.createStream()
         var lastPartialText = ""
         var lastSpeechTime = System.currentTimeMillis()
@@ -172,6 +176,12 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 buffer[i] / 32768.0f
             }
 
+            val speechDetected = isSpeech(samples)
+            if (!speechDetected && !hasDetectedSpeech) {
+                try { Thread.sleep(10) } catch (_: Exception) {}
+                continue
+            }
+
             currentStream.acceptWaveform(samples, SAMPLE_RATE)
             rec.decode(currentStream)
             val text = rec.getResult(currentStream).text
@@ -181,13 +191,13 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 lastPartialText = text
                 lastSpeechTime = System.currentTimeMillis()
                 hasDetectedSpeech = true
-                Log.d(TAG, "Partial: $text")
+                Log.d("Sherpa", "Partial: '$text'")
                 listener?.onPartialResult(text)
             }
 
             // Nếu đã có âm thanh và im lặng đủ SILENCE_THRESHOLD_MS (1.5s) -> FINAL
             if (hasDetectedSpeech && System.currentTimeMillis() - lastSpeechTime > SILENCE_THRESHOLD_MS) {
-                Log.d(TAG, "Final (silence detected): $lastPartialText")
+                Log.d("Sherpa", "Final: '$lastPartialText'")
                 listener?.onFinalResult(lastPartialText)
 
                 // Reset stream và state để nghe câu mới (KHÔNG tắt mic, KHÔNG stop)

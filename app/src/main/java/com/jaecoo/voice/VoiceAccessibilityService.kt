@@ -131,6 +131,118 @@ class VoiceAccessibilityService : AccessibilityService() {
             }
         }
 
+        fun isHvacPanelOpen(): Boolean {
+            return try {
+                val process = Runtime.getRuntime().exec(
+                    arrayOf("sh", "-c", 
+                        "dumpsys window windows | grep 'com.desaysv.svhvac'")
+                )
+                val output = process.inputStream.bufferedReader().readText()
+                process.waitFor()
+                output.contains("com.desaysv.svhvac")
+            } catch (e: Exception) {
+                Log.e(TAG, "isHvacPanelOpen fail", e)
+                false
+            }
+        }
+
+        private fun ensureHvacPanelOpen(): Boolean {
+            if (!isHvacPanelOpen()) {
+                openHvacPanelViaLauncher()
+                Thread.sleep(1500)
+            }
+            return isHvacPanelOpen()
+        }
+
+        fun hvacTogglePower(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(120, 1500, 300L)
+        }
+
+        fun hvacToggleAc(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(273, 1500, 300L)
+        }
+
+        fun hvacIncreaseFan(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1010, 1500, 300L)
+        }
+
+        fun hvacDecreaseFan(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(425, 1500, 300L)
+        }
+
+        fun hvacToggleAuto(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1160, 1500, 300L)
+        }
+
+        fun hvacToggleIon(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1315, 1500, 300L)
+        }
+
+        fun hvacIncreaseTempDriver(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(150, 900, 300L)
+        }
+
+        fun hvacDecreaseTempDriver(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(150, 1145, 300L)
+        }
+
+        fun hvacIncreaseTempPassenger(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1295, 900, 300L)
+        }
+
+        fun hvacDecreaseTempPassenger(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1300, 1145, 300L)
+        }
+
+        fun hvacToggleSync(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(160, 1690, 300L)
+        }
+
+        fun hvacDefrostFront(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(365, 1690, 300L)
+        }
+
+        fun hvacDefrostRear(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(570, 1690, 300L)
+        }
+
+        fun hvacBlowFace(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(780, 1690, 300L)
+        }
+
+        fun hvacBlowFoot(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(940, 1690, 300L)
+        }
+
+        fun hvacBlowWindow(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1095, 1690, 300L)
+        }
+
+        fun hvacToggleRecirculation(): Boolean {
+            if (!ensureHvacPanelOpen()) return false
+            return clickByCoordinates(1280, 1690, 300L)
+        }
+
+        fun hvacClosePanel(): Boolean {
+            return clickByCoordinates(720, 1835, 300L)
+        }
+
         fun launchApp(packageName: String): Boolean {
             val ctx = instance ?: return false
 

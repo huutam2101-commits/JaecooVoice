@@ -31,9 +31,6 @@ class DebugScreen : AppCompatActivity() {
     private lateinit var btnCoord1: Button
     private lateinit var btnCoord2: Button
     private lateinit var btnCoord3: Button
-    private lateinit var btnCoord4: Button
-    private lateinit var btnCoord5: Button
-    private lateinit var btnCoord6: Button
 
     private val logBuffer = StringBuilder()
 
@@ -52,9 +49,18 @@ class DebugScreen : AppCompatActivity() {
         btnCoord1 = findViewById(R.id.btnCoord1)
         btnCoord2 = findViewById(R.id.btnCoord2)
         btnCoord3 = findViewById(R.id.btnCoord3)
-        btnCoord4 = findViewById(R.id.btnCoord4)
-        btnCoord5 = findViewById(R.id.btnCoord5)
-        btnCoord6 = findViewById(R.id.btnCoord6)
+
+        val btnHvacPower: Button = findViewById(R.id.btnHvacPower)
+        val btnHvacAc: Button = findViewById(R.id.btnHvacAc)
+        val btnHvacFanUp: Button = findViewById(R.id.btnHvacFanUp)
+        val btnHvacFanDown: Button = findViewById(R.id.btnHvacFanDown)
+        val btnHvacTempUp: Button = findViewById(R.id.btnHvacTempUp)
+        val btnHvacTempDown: Button = findViewById(R.id.btnHvacTempDown)
+        val btnHvacAuto: Button = findViewById(R.id.btnHvacAuto)
+        val btnHvacRecirc: Button = findViewById(R.id.btnHvacRecirc)
+        val btnHvacIon: Button = findViewById(R.id.btnHvacIon)
+        val btnHvacSync: Button = findViewById(R.id.btnHvacSync)
+        val btnHvacState: Button = findViewById(R.id.btnHvacState)
 
         appendLog("DebugScreen khởi chạy")
 
@@ -110,9 +116,90 @@ class DebugScreen : AppCompatActivity() {
         btnCoord1.setOnClickListener { testClimateCoord(725, 1830) }
         btnCoord2.setOnClickListener { testClimateCoord(287, 1830) }
         btnCoord3.setOnClickListener { testClimateCoord(475, 1830) }
-        btnCoord4.setOnClickListener { testClimateCoord(900, 1830) }
-        btnCoord5.setOnClickListener { testClimateCoord(1145, 1830) }
-        btnCoord6.setOnClickListener { testClimateCoord(1380, 1830) }
+
+        btnHvacPower.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacTogglePower()
+                HvacState.isPowerOn = !HvacState.isPowerOn
+                runOnUiThread { appendLog("Power toggle=$res\n${HvacState.describe()}") }
+            }.start()
+        }
+
+        btnHvacAc.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacToggleAc()
+                HvacState.isAcOn = !HvacState.isAcOn
+                runOnUiThread { appendLog("AC toggle=$res\n${HvacState.describe()}") }
+            }.start()
+        }
+
+        btnHvacFanUp.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacIncreaseFan()
+                if (HvacState.fanSpeed < 7) HvacState.fanSpeed++
+                runOnUiThread { appendLog("Fan + =$res (Speed: ${HvacState.fanSpeed})") }
+            }.start()
+        }
+
+        btnHvacFanDown.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacDecreaseFan()
+                if (HvacState.fanSpeed > 1) HvacState.fanSpeed--
+                runOnUiThread { appendLog("Fan - =$res (Speed: ${HvacState.fanSpeed})") }
+            }.start()
+        }
+
+        btnHvacTempUp.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacIncreaseTempDriver()
+                if (HvacState.tempDriver < 32f) HvacState.tempDriver += 1f
+                runOnUiThread { appendLog("Temp + =$res (${HvacState.tempDriver.toInt()}°C)") }
+            }.start()
+        }
+
+        btnHvacTempDown.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacDecreaseTempDriver()
+                if (HvacState.tempDriver > 16f) HvacState.tempDriver -= 1f
+                runOnUiThread { appendLog("Temp - =$res (${HvacState.tempDriver.toInt()}°C)") }
+            }.start()
+        }
+
+        btnHvacAuto.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacToggleAuto()
+                HvacState.isAutoOn = !HvacState.isAutoOn
+                runOnUiThread { appendLog("Auto toggle=$res (Auto: ${HvacState.isAutoOn})") }
+            }.start()
+        }
+
+        btnHvacRecirc.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacToggleRecirculation()
+                HvacState.isRecircOn = !HvacState.isRecircOn
+                runOnUiThread { appendLog("⭐ Recirculation toggle=$res (Gió: ${if (HvacState.isRecircOn) "TRONG" else "NGOÀI"})") }
+            }.start()
+        }
+
+        btnHvacIon.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacToggleIon()
+                HvacState.isIonOn = !HvacState.isIonOn
+                runOnUiThread { appendLog("ION toggle=$res (ION: ${HvacState.isIonOn})") }
+            }.start()
+        }
+
+        btnHvacSync.setOnClickListener {
+            Thread {
+                val res = VoiceAccessibilityService.hvacToggleSync()
+                HvacState.isSyncOn = !HvacState.isSyncOn
+                runOnUiThread { appendLog("Sync toggle=$res (Sync: ${HvacState.isSyncOn})") }
+            }.start()
+        }
+
+        btnHvacState.setOnClickListener {
+            appendLog(HvacState.describe())
+        }
     }
 
     private fun testClimateCoord(x: Int, y: Int) {
@@ -194,13 +281,13 @@ class DebugScreen : AppCompatActivity() {
             "tắt điều hòa",
             "tăng nhiệt độ",
             "giảm nhiệt độ",
+            "lấy gió trong",
+            "lấy gió ngoài",
             "mở cửa kính",
             "đóng cửa kính",
             "mở cốp xe",
             "bật đèn",
-            "tắt đèn",
-            "dẫn đường đến Hồ Hoàn Kiếm",
-            "mở youtube nhạc trẻ"
+            "dẫn đường đến Hồ Hoàn Kiếm"
         )
 
         runOnUiThread { appendLog("=== BẮT ĐẦU TEST 13 LỆNH MẪU ===") }

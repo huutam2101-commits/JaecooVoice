@@ -134,6 +134,15 @@
             android:textSize="10sp" />
     </LinearLayout>
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Test Điều Khiển HVAC Panel:"
+        android:textColor="@color/text_primary"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -141,35 +150,130 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnCoord4"
+            android:id="@+id/btnHvacPower"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:backgroundTint="@color/surface_dark"
+            android:backgroundTint="@color/accent_blue"
             android:padding="0dp"
-            android:text="Temp R (900,1830)"
+            android:text="Power"
             android:textSize="10sp" />
 
         <Button
-            android:id="@+id/btnCoord5"
+            android:id="@+id/btnHvacAc"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="Notif (1145,1830)"
+            android:text="AC"
             android:textSize="10sp" />
 
         <Button
-            android:id="@+id/btnCoord6"
+            android:id="@+id/btnHvacFanUp"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
             android:layout_weight="1"
             android:backgroundTint="@color/surface_dark"
             android:padding="0dp"
-            android:text="Recent (1380,1830)"
+            android:text="Quạt +"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacFanDown"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="Quạt -"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacTempUp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="Nhiệt +"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacTempDown"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="Nhiệt -"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnHvacAuto"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="Auto"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacRecirc"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1.5"
+            android:backgroundTint="@color/accent_yellow"
+            android:padding="0dp"
+            android:text="Gió Trong/Ngoài"
+            android:textColor="@color/background_dark"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacIon"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="ION"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacSync"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="Sync"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnHvacState"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/surface_dark"
+            android:padding="0dp"
+            android:text="State"
             android:textSize="10sp" />
     </LinearLayout>
 

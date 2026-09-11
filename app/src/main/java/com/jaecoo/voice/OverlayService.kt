@@ -96,6 +96,9 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
         Log.d(TAG, "onCreate OverlayService")
         instance = this
 
+        SherpaSpeechManager.getInstance(this).reset()
+        Log.d(TAG, "reset() called in OverlayService.onCreate()")
+
         startForegroundNotification()
         setupOverlayWindow()
 
@@ -215,19 +218,26 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand")
+        Log.d(TAG, "onStartCommand: state=$state, modelReady=${speechManager.isModelReady()}")
         speechManager.setListener(this)
 
-        transitionTo(State.LISTENING)
+        if (speechManager.isModelReady()) {
+            Log.d(TAG, "Model ready, starting listening")
+            transitionTo(State.LISTENING)
+        } else {
+            Log.d(TAG, "Model chưa ready, chờ onReady() callback")
+        }
 
         return START_NOT_STICKY
     }
 
     override fun onReady() {
-        Log.d(TAG, "onReady")
+        Log.d(TAG, "onReady: state=$state")
         mainHandler.post {
-            if (state == State.LISTENING) {
+            if (state == State.LISTENING || state == State.WAITING_NEXT) {
                 transitionTo(State.LISTENING)
+            } else {
+                Log.d(TAG, "onReady: state=$state, không cần start listening")
             }
         }
     }

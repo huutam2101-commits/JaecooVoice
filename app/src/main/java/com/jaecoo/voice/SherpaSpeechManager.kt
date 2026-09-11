@@ -6,6 +6,8 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.util.Log
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -13,16 +15,14 @@ import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
+import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * Singleton quản lý khởi tạo và xử lý nhận diện giọng nói offline với sherpa-onnx Zipformer-vi
- */
 class SherpaSpeechManager private constructor(private val context: Context) {
 
     companion object {
         private const val TAG = "SherpaSpeech"
         private const val SAMPLE_RATE = 16000
-        private const val SILENCE_THRESHOLD_MS = 1500L  // 1.5s im lặng → final result
+        private const val SILENCE_THRESHOLD_MS = 1500L
 
         @Volatile
         private var instance: SherpaSpeechManager? = null
@@ -46,8 +46,11 @@ class SherpaSpeechManager private constructor(private val context: Context) {
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
 
-    @Volatile private var isRecordingThreadRunning = false
+    // Dùng AtomicBoolean thay vì @Volatile boolean — an toàn hơn với đa luồng
+    private val isRecordingThreadRunning = AtomicBoolean(false)
     @Volatile private var modelReady = false
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun setListener(l: RecognitionListener) {
         listener = l
@@ -56,23 +59,21 @@ class SherpaSpeechManager private constructor(private val context: Context) {
     fun isModelReady(): Boolean = modelReady
 
     fun reset() {
-        Log.d(TAG, "reset() called: forcing isRecordingThreadRunning = false and cleanup")
-        isRecordingThreadRunning = false
+        Log.d(TAG, "reset() called: forcing cleanup")
+        isRecordingThreadRunning.set(false)
         try { audioRecord?.stop() } catch (_: Exception) {}
         try { audioRecord?.release() } catch (_: Exception) {}
         audioRecord = null
         try { recordingThread?.interrupt() } catch (_: Exception) {}
         recordingThread = null
+        Log.d(TAG, "reset() done: isRecordingThreadRunning=${isRecordingThreadRunning.get()}")
     }
 
-    /**
-     * Khởi tạo model sherpa-onnx.
-     */
     @Synchronized
     fun initModel(): Boolean {
         if (modelReady && recognizer != null) {
             Log.d(TAG, "Model đã khởi tạo trước đó, bỏ qua reload")
-            listener?.onReady()
+            mainHandler.post { listener?.onReady() }
             return true
         }
 
@@ -99,43 +100,44 @@ class SherpaSpeechManager private constructor(private val context: Context) {
             modelReady = true
 
             Log.d(TAG, "Model init OK")
-            listener?.onReady()
+            mainHandler.post { listener?.onReady() }
             true
         } catch (e: Throwable) {
             Log.e(TAG, "Init failed: ${e.message}", e)
             modelReady = false
-            listener?.onError("Không tải được model: ${e.message}")
+            mainHandler.post { listener?.onError("Không tải được model: ${e.message}") }
             false
         }
     }
 
+    /**
+     * KHÔNG dùng @Synchronized ở đây vì có Thread.sleep() bên trong.
+     * Dùng AtomicBoolean.compareAndSet để đảm bảo atomic.
+     */
     @SuppressLint("MissingPermission")
-    @Synchronized
     fun startListening() {
-        Log.d(TAG, "startListening() ENTER: isRecordingThreadRunning=$isRecordingThreadRunning")
-        
-        if (isRecordingThreadRunning) {
+        Log.d(TAG, "startListening() ENTER: isRunning=${isRecordingThreadRunning.get()}")
+
+        // Atomic compareAndSet: chỉ set true nếu đang là false
+        if (!isRecordingThreadRunning.compareAndSet(false, true)) {
             Log.w(TAG, "Thread already running, skipping")
             return
         }
-        
-        isRecordingThreadRunning = true
         Log.d(TAG, "SET isRecordingThreadRunning = true")
-        
+
+        // Bọc toàn bộ trong try/catch(Throwable) và finally
         try {
             var rec = recognizer
             if (rec == null) {
-                Log.d(TAG, "Recognizer null in startListening, initializing model on worker thread...")
+                Log.d(TAG, "Recognizer null, calling initModel()...")
                 initModel()
                 rec = recognizer
             }
 
             if (rec == null) {
-                Log.e(TAG, "Recognizer null sau khi initModel, không thể start")
-                isRecordingThreadRunning = false
-                Log.d(TAG, "SET isRecordingThreadRunning = false (init failed)")
+                Log.e(TAG, "Recognizer null sau khi initModel")
                 listener?.onError("Model chưa sẵn sàng")
-                return
+                return  // finally sẽ reset
             }
 
             Log.d(TAG, "PASSED check, creating AudioRecord...")
@@ -164,12 +166,14 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 Log.d(TAG, "Retry requestAudioFocus #$focusRetries result=$focusResult")
             }
 
-            val minBuffer = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+            val minBuffer = AudioRecord.getMinBufferSize(
+                16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+            )
             Log.d(TAG, "minBufferSize=$minBuffer")
 
             val bufferSize = (minBuffer * 4).coerceAtLeast(8192)
-            
-            // Cleanup cũ nếu có
+
+            // Cleanup cũ
             try { audioRecord?.stop() } catch (_: Exception) {}
             try { audioRecord?.release() } catch (_: Exception) {}
             audioRecord = null
@@ -189,7 +193,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                     )
                     if (candidate.state == AudioRecord.STATE_INITIALIZED) {
                         createdRecord = candidate
-                        Log.d(TAG, "AudioRecord initialized successfully with source $src")
+                        Log.d(TAG, "AudioRecord initialized OK with source=$src")
                         break
                     } else {
                         candidate.release()
@@ -204,84 +208,91 @@ class SherpaSpeechManager private constructor(private val context: Context) {
 
             if (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
                 Log.e(TAG, "AudioRecord init failed")
-                isRecordingThreadRunning = false
-                Log.d(TAG, "SET isRecordingThreadRunning = false (AudioRecord init failed)")
                 listener?.onError("Không khởi tạo được mic")
-                return
+                return  // finally sẽ reset
             }
 
             audioRecord?.startRecording()
             Log.d(TAG, "startRecording() called: recordingState=${audioRecord?.recordingState}")
 
-            // Verify recording sau 100ms
             Thread.sleep(100)
             var recState = audioRecord?.recordingState
             Log.d(TAG, "After 100ms, recordingState = $recState (3=RECORDING)")
 
             if (recState != AudioRecord.RECORDSTATE_RECORDING) {
-                Log.e(TAG, "Mic KHÔNG ở trạng thái RECORDING sau 100ms! recordingState=$recState")
+                Log.e(TAG, "Mic KHÔNG ở trạng thái RECORDING sau 100ms! state=$recState")
                 var retries = 0
                 while (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING && retries < 3) {
                     retries++
                     Log.w(TAG, "Retry startRecording() #$retries...")
                     Thread.sleep(500)
-                    try { audioRecord?.startRecording() } catch (e: Exception) { Log.e(TAG, "Retry startRecording failed", e) }
+                    try { audioRecord?.startRecording() } catch (e: Exception) {
+                        Log.e(TAG, "Retry startRecording failed", e)
+                    }
                 }
                 recState = audioRecord?.recordingState
                 if (recState != AudioRecord.RECORDSTATE_RECORDING) {
-                    Log.e(TAG, "Mic vẫn KHÔNG ở trạng thái RECORDING sau $retries retries! recordingState=$recState")
-                    isRecordingThreadRunning = false
-                    Log.d(TAG, "SET isRecordingThreadRunning = false (mic not recording)")
+                    Log.e(TAG, "Mic vẫn KHÔNG RECORDING sau $retries retries! state=$recState")
                     listener?.onError("Mic không bắt đầu")
-                    return
+                    return  // finally sẽ reset
                 }
             }
 
-            // Chạy thread ghi âm
-            recordingThread = Thread {
+            // Tạo thread ghi âm
+            val capturedRecognizer = rec  // capture local var
+            val thread = Thread {
                 Log.d(TAG, "SherpaRecordingThread STARTED")
+                var currentStream = capturedRecognizer.createStream()
                 try {
                     Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
                     val chunkSamples = 1600
                     val buffer = ShortArray(chunkSamples)
-                    var currentStream = rec.createStream()
                     var lastPartialText = ""
                     var lastSpeechTime = System.currentTimeMillis()
                     var hasDetectedSpeech = false
                     var loopCount = 0
 
-                    while (isRecordingThreadRunning) {
+                    while (isRecordingThreadRunning.get()) {
                         val ar = audioRecord
                         if (ar == null) {
                             Log.e(TAG, "audioRecord null, break loop")
                             break
                         }
 
-                        val readSize = ar.read(buffer, 0, chunkSamples)
-                        if (loopCount % 100 == 0) {
-                            Log.d(TAG, "readSize=$readSize, loopCount=$loopCount, recordingState=${ar.recordingState}")
+                        val readSize = try {
+                            ar.read(buffer, 0, chunkSamples)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "read() error: ${e.message}", e)
+                            -1
                         }
-                        
+
+                        if (loopCount % 100 == 0) {
+                            Log.d(TAG, "readSize=$readSize, loopCount=$loopCount, recState=${ar.recordingState}")
+                        }
+
                         if (readSize > 0) {
                             val samples = FloatArray(readSize) { i -> buffer[i] / 32768.0f }
                             try {
                                 currentStream.acceptWaveform(samples, SAMPLE_RATE)
-                                rec.decode(currentStream)
-                                val text = rec.getResult(currentStream).text
+                                capturedRecognizer.decode(currentStream)
+                                val text = capturedRecognizer.getResult(currentStream).text
 
                                 if (text.isNotBlank() && text != lastPartialText) {
                                     lastPartialText = text
                                     lastSpeechTime = System.currentTimeMillis()
                                     hasDetectedSpeech = true
                                     Log.d(TAG, "Partial: '$text'")
-                                    listener?.onPartialResult(text)
+                                    // Post lên main thread
+                                    mainHandler.post { listener?.onPartialResult(text) }
                                 }
 
-                                if (hasDetectedSpeech && System.currentTimeMillis() - lastSpeechTime > SILENCE_THRESHOLD_MS) {
+                                if (hasDetectedSpeech &&
+                                    System.currentTimeMillis() - lastSpeechTime > SILENCE_THRESHOLD_MS) {
                                     Log.d(TAG, "Final: '$lastPartialText'")
-                                    listener?.onFinalResult(lastPartialText)
-                                    currentStream.release()
-                                    currentStream = rec.createStream()
+                                    val finalText = lastPartialText
+                                    mainHandler.post { listener?.onFinalResult(finalText) }
+                                    try { currentStream.release() } catch (_: Exception) {}
+                                    currentStream = capturedRecognizer.createStream()
                                     lastPartialText = ""
                                     hasDetectedSpeech = false
                                     lastSpeechTime = System.currentTimeMillis()
@@ -294,39 +305,45 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                         }
                         loopCount++
                     }
-                    try { currentStream.release() } catch (_: Exception) {}
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Thread error: ${e.message}", e)
                 } finally {
                     Log.d(TAG, "SherpaRecordingThread ENDED")
-                    isRecordingThreadRunning = false
-                    Log.d(TAG, "SET isRecordingThreadRunning = false (in thread finally)")
+                    try { currentStream.release() } catch (_: Exception) {}
+                    isRecordingThreadRunning.set(false)
+                    Log.d(TAG, "SET isRecordingThreadRunning = false (thread finally)")
                     try { audioRecord?.stop() } catch (_: Exception) {}
                     try { audioRecord?.release() } catch (_: Exception) {}
                     audioRecord = null
                 }
             }
-            recordingThread?.name = "SherpaRecordingThread"
-            recordingThread?.start()
-            Log.d(TAG, "Recording thread started")
+            thread.name = "SherpaRecordingThread"
+            recordingThread = thread
+            thread.start()
+            Log.d(TAG, "Recording thread started, isRecordingThreadRunning=${isRecordingThreadRunning.get()}")
 
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "startListening() error: ${e.message}", e)
-            isRecordingThreadRunning = false
-            Log.d(TAG, "SET isRecordingThreadRunning = false (in catch)")
+            listener?.onError("Lỗi startListening: ${e.message}")
+        } finally {
+            // CHỈ reset nếu thread chưa chạy hoặc đã kết thúc
+            // Nếu thread đang chạy, giữ nguyên true để thread biết cần dừng
+            val t = recordingThread
+            if (t == null || !t.isAlive) {
+                isRecordingThreadRunning.set(false)
+                Log.d(TAG, "SET isRecordingThreadRunning = false (startListening finally, thread not alive)")
+            } else {
+                Log.d(TAG, "Thread is alive, keeping isRecordingThreadRunning=true")
+            }
         }
     }
 
     fun stopListening() {
         Log.d(TAG, "stopListening() called")
-        isRecordingThreadRunning = false
+        isRecordingThreadRunning.set(false)
         Log.d(TAG, "SET isRecordingThreadRunning = false (stopListening)")
-        try {
-            audioRecord?.stop()
-        } catch (_: Exception) {}
-        try {
-            audioRecord?.release()
-        } catch (_: Exception) {}
+        try { audioRecord?.stop() } catch (_: Exception) {}
+        try { audioRecord?.release() } catch (_: Exception) {}
         audioRecord = null
         Log.d(TAG, "Đã dừng ghi âm")
     }
@@ -336,7 +353,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
         stopListening()
         try { recordingThread?.interrupt() } catch (_: Exception) {}
         recordingThread = null
-        recognizer?.release()
+        try { recognizer?.release() } catch (_: Exception) {}
         recognizer = null
         modelReady = false
     }

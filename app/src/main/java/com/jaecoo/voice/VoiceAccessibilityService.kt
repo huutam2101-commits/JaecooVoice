@@ -316,6 +316,8 @@ class VoiceAccessibilityService : AccessibilityService() {
         if (isVoiceKey) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 Log.d(TAG, "Bắt phím Voice vô lăng (${event.keyCode}) -> Mở Overlay")
+                SherpaSpeechManager.getInstance(this).reset()
+                Log.d(TAG, "reset() called before showOverlay()")
                 OverlayService.showOverlay(this)
                 return true
             }

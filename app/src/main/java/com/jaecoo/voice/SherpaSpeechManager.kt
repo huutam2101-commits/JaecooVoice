@@ -57,6 +57,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
 
     fun reset() {
         Log.d(TAG, "reset() called: forcing isListening = false and cleanup")
+        Log.d("SherpaSpeech", "SET isListening = false at ${Thread.currentThread().name} (reset)")
         isListening = false
         try { audioRecord?.stop() } catch (_: Exception) {}
         try { audioRecord?.release() } catch (_: Exception) {}
@@ -111,18 +112,24 @@ class SherpaSpeechManager private constructor(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun startListening() {
-        Log.d("SherpaSpeech", "startListening() called, isListening=$isListening, recognizer=${recognizer != null}")
+        Log.d("SherpaSpeech", "startListening() called, isListening=$isListening, recognizer=${recognizer != null}, threadAlive=${recordingThread?.isAlive}")
 
-        if (isListening) {
-            Log.w(TAG, "Đã listening rồi, bỏ qua")
+        // Check if recording thread is actually active
+        if (isListening && recordingThread?.isAlive == true) {
+            Log.w(TAG, "Recording thread is already running, skipping startListening()")
             return
         }
 
+        // Reset if thread was dead or previous attempt crashed
+        Log.d("SherpaSpeech", "SET isListening = false at ${Thread.currentThread().name} (pre-start reset)")
+        isListening = false
+
+        Log.d("SherpaSpeech", "SET isListening = true at ${Thread.currentThread().name}")
         isListening = true
 
         val t = Thread {
             Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
-            Log.d(TAG, "Worker thread started")
+            Log.d(TAG, "Worker thread started: ${Thread.currentThread().name}")
 
             try {
                 var rec = recognizer
@@ -178,11 +185,6 @@ class SherpaSpeechManager private constructor(private val context: Context) {
 
                 val bufferSize = (minBuffer * 4).coerceAtLeast(8192)
                 Log.d(TAG, "Using bufferSize = $bufferSize bytes")
-
-                // Release old
-                try { audioRecord?.stop() } catch (_: Exception) {}
-                try { audioRecord?.release() } catch (_: Exception) {}
-                audioRecord = null
 
                 // Create AudioRecord với VOICE_RECOGNITION và MIC fallback
                 val sources = intArrayOf(
@@ -254,6 +256,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 Log.e(TAG, "Worker thread crashed", e)
                 listener?.onError("Lỗi worker: ${e.message}")
             } finally {
+                Log.d("SherpaSpeech", "SET isListening = false at ${Thread.currentThread().name}")
                 isListening = false
                 try { audioRecord?.stop() } catch (_: Exception) {}
                 try { audioRecord?.release() } catch (_: Exception) {}
@@ -345,6 +348,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
     }
 
     private fun stopListeningInternal() {
+        Log.d("SherpaSpeech", "SET isListening = false at ${Thread.currentThread().name} (stopListeningInternal)")
         isListening = false
         try {
             audioRecord?.stop()

@@ -75,38 +75,34 @@ class VoiceAccessibilityService : AccessibilityService() {
         }
 
         fun clickByCoordinates(x: Int, y: Int): Boolean {
-            val service = instance ?: return false
-            val path = Path().apply {
-                moveTo(x.toFloat(), y.toFloat())
-            }
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
-                .build()
-
-            var success = false
-            service.dispatchGesture(gesture, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    super.onCompleted(gestureDescription)
-                    Log.d(TAG, "clickByCoordinates gesture completed at ($x, $y)")
-                    success = true
-                }
-
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    super.onCancelled(gestureDescription)
-                    Log.w(TAG, "clickByCoordinates gesture cancelled at ($x, $y)")
-                }
-            }, null)
-            return success
+            return testClickCoordinates(x, y)
         }
 
         fun testClickCoordinates(x: Int, y: Int): Boolean {
-            return clickByCoordinates(x, y)
+            Log.d(TAG, "testClickCoordinates ($x, $y)")
+            val service = instance ?: return false
+            return try {
+                val path = Path()
+                path.moveTo(x.toFloat(), y.toFloat())
+
+                val gesture = GestureDescription.Builder()
+                    .addStroke(
+                        GestureDescription.StrokeDescription(path, 0, 50)
+                    )
+                    .build()
+
+                val result = service.dispatchGesture(gesture, null, null)
+                Log.d(TAG, "dispatchGesture: $result")
+                result
+            } catch (e: Exception) {
+                Log.e(TAG, "testClickCoordinates crash", e)
+                false
+            }
         }
 
         fun launchApp(packageName: String): Boolean {
             val ctx = instance ?: return false
 
-            // 1. Thử cách chuẩn
             val intent = ctx.packageManager.getLaunchIntentForPackage(packageName)
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -115,32 +111,27 @@ class VoiceAccessibilityService : AccessibilityService() {
                 return true
             }
 
-            // 2. Fallback: Automotive app — click tọa độ trên Launcher
-            Log.w(TAG, "No launcher activity: $packageName — dùng fallback")
+            // Fallback chạy trên background thread
+            Thread {
+                try {
+                    Log.w(TAG, "Fallback for: $packageName")
+                    goHome()
+                    Thread.sleep(1200)
 
-            // Về Launcher
-            goHome()
-            try { Thread.sleep(1200) } catch (_: Exception) {}
+                    val coords = when (packageName) {
+                        "com.desaysv.svhvac" -> Pair(810, 1840)
+                        else -> null
+                    }
 
-            // Click nút tương ứng trên Launcher
-            val coords: Pair<Int, Int>? = when (packageName) {
-                "com.desaysv.svhvac" -> Pair(810, 1840)  // Climate
-                else -> null
-            }
+                    if (coords != null) {
+                        testClickCoordinates(coords.first, coords.second)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Fallback fail", e)
+                }
+            }.start()
 
-            if (coords == null) {
-                Log.e(TAG, "No fallback coord for: $packageName")
-                return false
-            }
-
-            Log.d(TAG, "Click launcher button tại (${coords.first}, ${coords.second})")
-            val clicked = clickByCoordinates(coords.first, coords.second)
-            Log.d(TAG, "dispatchGesture result: $clicked")
-
-            // Chờ app mở
-            try { Thread.sleep(2000) } catch (_: Exception) {}
-
-            return clicked
+            return true  // return ngay, không chờ
         }
 
         fun goHome(): Boolean {

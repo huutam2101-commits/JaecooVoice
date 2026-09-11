@@ -61,15 +61,21 @@ class DebugScreen : AppCompatActivity() {
         btnTest.setOnClickListener {
             val cmdText = edtCommand.text.toString().trim()
             if (cmdText.isNotBlank()) {
-                val result = CommandExecutor.executeCommand(this, cmdText)
-                appendLog("Lệnh: '$cmdText' -> $result")
+                Thread {
+                    val result = CommandExecutor.executeCommand(this, cmdText)
+                    runOnUiThread {
+                        appendLog("Lệnh: '$cmdText' -> $result")
+                    }
+                }.start()
             } else {
                 Toast.makeText(this, "Hãy nhập câu lệnh", Toast.LENGTH_SHORT).show()
             }
         }
 
         btnTestAll.setOnClickListener {
-            runAll13SampleCommands()
+            Thread {
+                runAll13SampleCommands()
+            }.start()
         }
 
         btnDumpUi.setOnClickListener {
@@ -111,33 +117,51 @@ class DebugScreen : AppCompatActivity() {
 
     private fun testClimateCoord(x: Int, y: Int) {
         Thread {
-            runOnUiThread {
-                appendLog("Test coord ($x, $y) -> Về Home...")
-            }
+            try {
+                Log.d(TAG, "Test ($x, $y) starting...")
+                runOnUiThread {
+                    appendLog("Test ($x, $y) starting -> Về Home...")
+                }
 
-            // a. Về Home trước
-            VoiceAccessibilityService.goHome()
+                val svc = VoiceAccessibilityService.getInstance()
+                if (svc == null) {
+                    Log.e(TAG, "VoiceA11y service NULL")
+                    runOnUiThread {
+                        appendLog("Lỗi: VoiceA11y service NULL")
+                    }
+                    return@Thread
+                }
 
-            // b. Đợi 1 giây
-            try { Thread.sleep(1000) } catch (_: Exception) {}
+                // a. Về Home trước
+                VoiceAccessibilityService.goHome()
 
-            // c. Gọi testClickCoordinates(x, y)
-            runOnUiThread {
-                appendLog("Clicking ($x, $y)...")
-            }
-            VoiceAccessibilityService.testClickCoordinates(x, y)
+                // b. Đợi 1 giây
+                try { Thread.sleep(1000) } catch (_: Exception) {}
 
-            // d. Đợi 1.5 giây
-            try { Thread.sleep(1500) } catch (_: Exception) {}
+                // c. Gọi testClickCoordinates(x, y)
+                runOnUiThread {
+                    appendLog("Clicking ($x, $y)...")
+                }
+                val result = VoiceAccessibilityService.testClickCoordinates(x, y)
+                Log.d(TAG, "Result ($x, $y): $result")
 
-            // e. Kiểm tra foreground app
-            val pkg = getForegroundPackage()
-            val logMsg = "Foreground sau click ($x,$y): $pkg"
-            Log.d(TAG, logMsg)
+                // d. Đợi 1.5 giây
+                try { Thread.sleep(1500) } catch (_: Exception) {}
 
-            // f. Hiển thị kết quả lên TextView
-            runOnUiThread {
-                appendLog(logMsg)
+                // e. Kiểm tra foreground app
+                val pkg = getForegroundPackage()
+                val logMsg = "Foreground sau click ($x,$y): $pkg (dispatchResult=$result)"
+                Log.d(TAG, logMsg)
+
+                // f. Hiển thị kết quả lên TextView
+                runOnUiThread {
+                    appendLog(logMsg)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Crash in testClimateCoord", e)
+                runOnUiThread {
+                    appendLog("Crash ($x, $y): ${e.message}")
+                }
             }
         }.start()
     }
@@ -179,12 +203,12 @@ class DebugScreen : AppCompatActivity() {
             "mở youtube nhạc trẻ"
         )
 
-        appendLog("=== BẮT ĐẦU TEST 13 LỆNH MẪU ===")
+        runOnUiThread { appendLog("=== BẮT ĐẦU TEST 13 LỆNH MẪU ===") }
         sampleList.forEachIndexed { index, cmd ->
             val res = CommandExecutor.executeCommand(this, cmd)
-            appendLog("[${index + 1}] '$cmd' => $res")
+            runOnUiThread { appendLog("[${index + 1}] '$cmd' => $res") }
         }
-        appendLog("=== HOÀN TẤT TEST 13 LỆNH ===")
+        runOnUiThread { appendLog("=== HOÀN TẤT TEST 13 LỆNH ===") }
     }
 
     private fun appendLog(text: String) {

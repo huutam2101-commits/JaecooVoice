@@ -56,6 +56,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
     /**
      * Khởi tạo model sherpa-onnx.
      */
+    @Synchronized
     fun initModel(): Boolean {
         if (modelReady && recognizer != null) {
             Log.d(TAG, "Model đã khởi tạo trước đó, bỏ qua reload")
@@ -74,7 +75,7 @@ class SherpaSpeechManager private constructor(private val context: Context) {
                 ),
                 tokens = "zipformer-vi/tokens.txt",
                 numThreads = 2,
-                modelType = "zipformer"
+                modelType = "transducer"
             )
 
             val config = OfflineRecognizerConfig(
@@ -103,13 +104,6 @@ class SherpaSpeechManager private constructor(private val context: Context) {
             return
         }
 
-        val rec = recognizer
-        if (rec == null) {
-            Log.e(TAG, "Recognizer null, không thể start")
-            listener?.onError("Model chưa sẵn sàng")
-            return
-        }
-
         Log.d(TAG, "=== startListening() BEGIN ===")
         isListening = true
 
@@ -121,6 +115,20 @@ class SherpaSpeechManager private constructor(private val context: Context) {
             Log.d(TAG, "Worker thread started")
 
             try {
+                var rec = recognizer
+                if (rec == null) {
+                    Log.d(TAG, "Recognizer null in startListening, initializing model on worker thread...")
+                    initModel()
+                    rec = recognizer
+                }
+
+                if (rec == null) {
+                    Log.e(TAG, "Recognizer null sau khi initModel, không thể start")
+                    isListening = false
+                    listener?.onError("Model chưa sẵn sàng")
+                    return@Thread
+                }
+
                 // 1. Get min buffer
                 val minBuffer = AudioRecord.getMinBufferSize(
                     SAMPLE_RATE,

@@ -121,7 +121,8 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
             ttsReady = true
             Log.d(TAG, "TTS initialized successfully")
         } else {
-            Log.e(TAG, "TTS init failed with status $status")
+            ttsReady = false
+            Log.w(TAG, "TTS init failed with status $status (No TTS engine available on head unit)")
         }
     }
 
@@ -286,14 +287,14 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
         speechManager.stopListening()
         Log.d(TAG, "Mic stopped, chuẩn bị TTS")
 
+        if (!ttsReady || tts == null) {
+            Log.w(TAG, "TTS unavailable -> skip speech, finish TTS step")
+            onTtsFinished()
+            return
+        }
+
         // Chờ 200ms để mic tắt hẳn trước khi loa phát
         mainHandler.postDelayed({
-            if (tts == null) {
-                Log.w(TAG, "TTS null -> fallback")
-                onTtsFinished()
-                return@postDelayed
-            }
-
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
                     Log.d(TAG, "TTS bắt đầu đọc")

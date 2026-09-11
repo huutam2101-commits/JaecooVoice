@@ -369,6 +369,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
             Log.d("OverlayService", "Debounce: bỏ qua startListening(), còn ${remaining}ms")
             return
         }
+        
         lastStartTime = now
 
         try {

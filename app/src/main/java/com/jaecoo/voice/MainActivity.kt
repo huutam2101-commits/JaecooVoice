@@ -30,7 +30,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Không setContentView -> giữ Activity trong suốt
+        // Reset sạch trạng thái SherpaSpeechManager khi mở app
+        SherpaSpeechManager.getInstance(this).reset()
 
         // Kiểm tra quyền RECORD_AUDIO
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)

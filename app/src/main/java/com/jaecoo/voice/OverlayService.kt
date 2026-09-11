@@ -122,7 +122,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
             Log.d(TAG, "TTS initialized successfully")
         } else {
             ttsReady = false
-            Log.w(TAG, "TTS init failed with status $status (No TTS engine available on head unit)")
+            Log.w("OverlayService", "TTS unavailable, skipping speech, continuing voice recognition")
         }
     }
 
@@ -288,7 +288,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
         Log.d(TAG, "Mic stopped, chuẩn bị TTS")
 
         if (!ttsReady || tts == null) {
-            Log.w(TAG, "TTS unavailable -> skip speech, finish TTS step")
+            Log.w("OverlayService", "TTS unavailable, skipping speech, continuing voice recognition")
             onTtsFinished()
             return
         }
@@ -363,8 +363,10 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
 
     private fun safeStartListening() {
         val now = System.currentTimeMillis()
-        if (now - lastStartTime < START_DEBOUNCE) {
-            Log.d(TAG, "Debounce startListening, bỏ qua")
+        val elapsed = now - lastStartTime
+        if (elapsed < START_DEBOUNCE) {
+            val remaining = START_DEBOUNCE - elapsed
+            Log.d("OverlayService", "Debounce: bỏ qua startListening(), còn ${remaining}ms")
             return
         }
         lastStartTime = now
@@ -425,7 +427,7 @@ class OverlayService : Service(), SherpaSpeechManager.RecognitionListener, TextT
             tts?.shutdown()
             tts = null
         } catch (e: Exception) {
-            Log.e(TAG, "TTS shutdown error: ${e.message}", e)
+            Log.e(TAG, "removeView error: ${e.message}", e)
         }
 
         overlayView?.let { view ->

@@ -27,6 +27,13 @@ class DebugScreen : AppCompatActivity() {
     private lateinit var btnA11y: Button
     private lateinit var tvDebugLog: TextView
 
+    private lateinit var btnCoord1: Button
+    private lateinit var btnCoord2: Button
+    private lateinit var btnCoord3: Button
+    private lateinit var btnCoord4: Button
+    private lateinit var btnCoord5: Button
+    private lateinit var btnCoord6: Button
+
     private val logBuffer = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +47,13 @@ class DebugScreen : AppCompatActivity() {
         btnOpenVr = findViewById(R.id.btnOpenVr)
         btnA11y = findViewById(R.id.btnA11y)
         tvDebugLog = findViewById(R.id.tvDebugLog)
+
+        btnCoord1 = findViewById(R.id.btnCoord1)
+        btnCoord2 = findViewById(R.id.btnCoord2)
+        btnCoord3 = findViewById(R.id.btnCoord3)
+        btnCoord4 = findViewById(R.id.btnCoord4)
+        btnCoord5 = findViewById(R.id.btnCoord5)
+        btnCoord6 = findViewById(R.id.btnCoord6)
 
         appendLog("DebugScreen khởi chạy")
 
@@ -85,6 +99,20 @@ class DebugScreen : AppCompatActivity() {
                 appendLog("Lỗi mở Accessibility Settings: ${e.message}")
             }
         }
+
+        btnCoord1.setOnClickListener { testClimateCoord(810, 1800) }
+        btnCoord2.setOnClickListener { testClimateCoord(810, 1840) }
+        btnCoord3.setOnClickListener { testClimateCoord(810, 1880) }
+        btnCoord4.setOnClickListener { testClimateCoord(800, 1840) }
+        btnCoord5.setOnClickListener { testClimateCoord(820, 1840) }
+        btnCoord6.setOnClickListener { testClimateCoord(850, 1840) }
+    }
+
+    private fun testClimateCoord(x: Int, y: Int) {
+        Log.d(TAG, "Test coord ($x, $y)")
+        appendLog("Test coord ($x, $y)")
+        val result = VoiceAccessibilityService.testClickCoordinates(x, y)
+        appendLog("Result dispatchGesture ($x, $y): $result")
     }
 
     private fun runAll13SampleCommands() {

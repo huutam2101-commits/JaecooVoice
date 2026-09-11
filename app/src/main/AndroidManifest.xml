@@ -34,7 +34,7 @@
         <!-- Activity Debug -->
         <activity
             android:name=".DebugScreen"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.JaecooVoice" />
 
         <!-- Overlay Foreground Service -->

@@ -1,5 +1,6 @@
 package com.jaecoo.voice
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -109,10 +110,56 @@ class DebugScreen : AppCompatActivity() {
     }
 
     private fun testClimateCoord(x: Int, y: Int) {
-        Log.d(TAG, "Test coord ($x, $y)")
-        appendLog("Test coord ($x, $y)")
-        val result = VoiceAccessibilityService.testClickCoordinates(x, y)
-        appendLog("Result dispatchGesture ($x, $y): $result")
+        Thread {
+            runOnUiThread {
+                appendLog("Test coord ($x, $y) -> Về Home...")
+            }
+
+            // a. Về Home trước
+            VoiceAccessibilityService.goHome()
+
+            // b. Đợi 1 giây
+            try { Thread.sleep(1000) } catch (_: Exception) {}
+
+            // c. Gọi testClickCoordinates(x, y)
+            runOnUiThread {
+                appendLog("Clicking ($x, $y)...")
+            }
+            VoiceAccessibilityService.testClickCoordinates(x, y)
+
+            // d. Đợi 1.5 giây
+            try { Thread.sleep(1500) } catch (_: Exception) {}
+
+            // e. Kiểm tra foreground app
+            val pkg = getForegroundPackage()
+            val logMsg = "Foreground sau click ($x,$y): $pkg"
+            Log.d(TAG, logMsg)
+
+            // f. Hiển thị kết quả lên TextView
+            runOnUiThread {
+                appendLog(logMsg)
+            }
+        }.start()
+    }
+
+    private fun getForegroundPackage(): String {
+        return try {
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE)
+                as android.app.ActivityManager
+            @Suppress("DEPRECATION")
+            val tasks = activityManager.getRunningTasks(1)
+            val topPkg = tasks.firstOrNull()?.topActivity?.packageName
+            if (!topPkg.isNullOrBlank()) return topPkg
+
+            val a11yPkg = VoiceAccessibilityService.getInstance()?.rootInActiveWindow?.packageName?.toString()
+            if (!a11yPkg.isNullOrBlank()) return a11yPkg
+
+            "unknown"
+        } catch (e: Exception) {
+            val a11yPkg = VoiceAccessibilityService.getInstance()?.rootInActiveWindow?.packageName?.toString()
+            if (!a11yPkg.isNullOrBlank()) return a11yPkg
+            "error: ${e.message}"
+        }
     }
 
     private fun runAll13SampleCommands() {
